@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { connect } from 'react-redux'
 import { CSSTransition } from 'react-transition-group'
+import { actionCreators } from './store'
 import {
     HeaderWrapper,
     Logo,
@@ -8,16 +9,47 @@ import {
     NavSearch,
     Addition,
     Button,
-    SearchWrapper
+    SearchWrapper,
+    SearchInfo,
+    SearchInfoTitle,
+    SearchInfoSwitch,
+    SearchInfoList,
+    SearchInfoItem
 } from './style'
 
-function Header () {
-    const [focused, setFocused] = useState(false)
-    function handleInputFocus () {
-        setFocused(true)
+function Header (props) {
+    const {
+        focused, list, page, totalPage, mouseIn, 
+        handleInputFocus, handleInputBlur, handleMouseEnter, handleMouseLeave, handleChangePage
+    } = props
+    const pageList = []
+    const jsList = list.toJS()
+    if (jsList.length) {
+        for (let i = (page - 1) * 10; i < page * 10; i++) {
+            pageList.push(
+                <SearchInfoItem key={jsList[i]}>{ jsList[i] }</SearchInfoItem>
+            )
+        }
     }
-    function handleInputBlur () {
-        setFocused(false)
+    const getListArea = () => {
+        if (focused || mouseIn) {
+            return (
+                <SearchInfo
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                >
+                    <SearchInfoTitle>
+                        热门搜索
+                        <SearchInfoSwitch onClick={() => handleChangePage(page, totalPage)}>换一批</SearchInfoSwitch>
+                    </SearchInfoTitle>
+                    <SearchInfoList>
+                        { pageList }
+                    </SearchInfoList>
+                </SearchInfo>
+            )
+        } else {
+            return null
+        }
     }
 
     return (
@@ -33,13 +65,14 @@ function Header () {
                 <SearchWrapper>
                     <CSSTransition timeout={200} in={focused} classNames="slide">
                         <NavSearch
-                            onFocus={handleInputFocus}
+                            onFocus={() => handleInputFocus(list)}
                             onBlur={handleInputBlur}
                             className={focused ? 'focused' : ''}
                         >
                         </NavSearch>
                     </CSSTransition>
-                    <i className={focused ? 'focused iconfont' : 'iconfont'}>&#xe60c;</i>
+                    <i className={focused ? 'focused iconfont zoom' : 'iconfont zoom'}>&#xe60c;</i>
+                    { getListArea() }
                 </SearchWrapper>
             </Nav>
             <Addition>
@@ -53,4 +86,37 @@ function Header () {
     )
 }
 
-export default Header
+const mapStateToProps = (state) => {
+    return {
+        focused: state.getIn(['header', 'focused']),
+        // focused: state.get('header').get('focused')
+        list: state.getIn(['header', 'list']),
+        page: state.getIn(['header', 'page']),
+        totalPage: state.getIn(['header', 'totalPage']),
+        mouseIn: state.getIn(['header', 'mouseIn'])
+    }
+}
+
+const mapDispatchToProps = (dispatch) => {
+    return {
+        handleInputFocus (list) {
+            (list.size === 0) && dispatch(actionCreators.getList())
+            dispatch(actionCreators.searchFocus())
+        },
+        handleInputBlur () {
+            dispatch(actionCreators.searchBlur())
+        },
+        handleMouseEnter () {
+            dispatch(actionCreators.mouseEnter())
+        },
+        handleMouseLeave () {
+            dispatch(actionCreators.mouseLeave())
+        },
+        handleChangePage (page, totalPage) {
+            const data = page + 1 > totalPage ? 1 : page + 1
+            dispatch(actionCreators.changePage(data))
+        }
+    }
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(Header)
